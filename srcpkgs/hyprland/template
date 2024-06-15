@@ -1,29 +1,34 @@
 # Template file for 'hyprland'
 pkgname=hyprland
-version=0.39.1
-revision=1
+version=0.41.1
+revision=2
 build_style=cmake
 configure_args=" --no-warn-unused-cli \
-      -DCMAKE_BUILD_TYPE:STRING=Release \
-      -DNO_SYSTEMD:STRING=true \
-      -G Ninja
+	-DCMAKE_BUILD_TYPE:STRING=Release \
+	-DCMAKE_INSTALL_PREFIX:PATH=/usr \
+	-DNO_SYSTEMD:STRING=true \
+	-G Ninja
 "
 hstmkdeps="
 	cmake
 	cpio
+	gcc
 	glslang
-	hwids
+	hyprwayland-scanner
 	jq
+	make
 	meson
 	ninja
-	pkg-config
+	pkgconf
 	wayland-devel
 "
 hostmakedepends=$hstmkdeps
 makedepends="
 	cairo-devel
+	hwids
 	hyprcursor
 	hyprlang
+	hyprutils
 	libdisplay-info-devel
 	libdrm-devel
 	libgbm-devel
@@ -48,56 +53,38 @@ license="BSD-3-Clause"
 homepage="https://hyprland.org/"
 changelog="https://github.com/hyprwm/Hyprland/releases"
 distfiles="https://github.com/hyprwm/Hyprland/releases/download/v${version}/source-v${version}.tar.gz"
-checksum=48d1c58fd8db365635a56d76e05e6ea2d99fa20c020a061ee88a20407cfde787
+checksum=4572e3990a18de602410b422ae9232233f2a699b3d0132b90a6e1c25f7369a75
 
 if [ "$XBPS_TARGET_LIBC" = "musl" ]; then
-      configure_args+=" -DCMAKE_CXX_FLAGS=\"-lexecinfo\""
-	makedepends+=" libexecinfo-devel hwids"
-	depends+=" libexecinfo hwids"
+	configure_args+=" -DCMAKE_CXX_FLAGS=\"-lexecinfo\""
+	makedepends+=" libexecinfo-devel"
+	depends+=" libexecinfo"
 fi
 
-do_install() {
+post_install() {
 	# license
 	vlicense LICENSE
-
-	# binaries
-	vbin build/Hyprland
-	vbin build/hyprctl/hyprctl
-	vbin build/hyprpm/hyprpm
-
-	# assets
-	vmkdir usr/share/wayland-sessions
-	vmkdir usr/share/hyprland
-	vmkdir usr/share/xdg-desktop-portal
-
-	install -Dm0644 assets/*.png ${DESTDIR}/usr/share/hyprland
-	vinstall assets/header.svg 644 usr/share/hyprland
-	vinstall assets/hyprland-portals.conf 644 usr/share/xdg-desktop-portal
-	vinstall example/hyprland.desktop 644 usr/share/wayland-sessions
-	vinstall example/hyprland.conf 644 usr/share/hyprland
-
-	vman docs/Hyprland.1
-	vman docs/hyprctl.1
 
 	# headers
 	vmkdir usr/include/hyprland
 	vmkdir usr/include/hyprland/protocols
-	vmkdir usr/include/hyprland/wlroots-hyprland
+	vmkdir usr/include/hyprland/wlr
 	vmkdir usr/share/pkgconfig
+
+	cmake --build ./build --config Release --target generate-protocol-headers
 
 	find src -name '*.h*' -print0 | cpio --quiet -0dump ${DESTDIR}/usr/include/hyprland
 
-	pushd subprojects/wlroots-hyprland/include
-	find . -name '*.h*' -print0 | cpio --quiet -0dump ${DESTDIR}/usr/include/hyprland/wlroots-hyprland
+	pushd subprojects/wlroots-hyprland/include/wlr
+	find . -name '*.h*' -print0 | cpio --quiet -0dump ${DESTDIR}/usr/include/hyprland/wlr
 	popd
 
 	pushd subprojects/wlroots-hyprland/build/include
-	find . -name '*.h*' -print0 | cpio --quiet -0dump ${DESTDIR}/usr/include/hyprland/wlroots-hyprland
+	find . -name '*.h*' -print0 | cpio --quiet -0dump ${DESTDIR}/usr/include/hyprland/wlr
 	popd
 
-	vinstall build/hyprland.pc 644 usr/share/pkgconfig
 	install -Dm0644 protocols/*-protocol.h ${DESTDIR}/usr/include/hyprland/protocols
-
+	vinstall build/hyprland.pc 644 usr/share/pkgconfig
 }
 
 hyprland-devel_package() {
