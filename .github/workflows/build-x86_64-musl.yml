@@ -1,9 +1,6 @@
 name: "Build Hyprland x86_64 Musl"
 
 on:
-  push:
-    branches:
-      - master
   workflow_dispatch:
 
 env:
@@ -46,7 +43,7 @@ jobs:
           xbps-install -Syu xbps
           xbps-install -Syu
           xbps-install -y tar curl
-          
+
       - name: Clone Void-Packages and prepare
         run: |
           mkdir ~/void-pkgs
@@ -217,4 +214,3 @@ jobs:
           git add .
           git commit -m "Upload latest packages to repository"
           git push https://${{ env.REPO_OWNER }}:${{ secrets.ACCESS_GIT }}@github.com/${{ env.REPO_OWNER }}/${{ env.REPO_NAME }}.git repository-x86_64-musl
-

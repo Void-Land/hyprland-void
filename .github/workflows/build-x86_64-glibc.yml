@@ -69,14 +69,12 @@ jobs:
           common/travis/prepare.sh &&
           common/travis/fetch-xtools.sh
 
-      # Common Deps
       - name: Build tomlplusplus
         run: (/hostrepo/xbps-src -j$(nproc) -s -H ~/hostdir pkg tomlplusplus)
 
       - name: Build sdbus-cpp
         run: (/hostrepo/xbps-src -j$(nproc) -s -H ~/hostdir pkg sdbus-cpp)
 
-      # Normal Builds
       - name: Build hyprutils
         run: (/hostrepo/xbps-src -j$(nproc) -s -H ~/hostdir pkg hyprutils)
 
@@ -107,7 +105,6 @@ jobs:
       - name: Build hyprpaper
         run: (/hostrepo/xbps-src -j$(nproc) -s -H ~/hostdir pkg hyprpaper)
 
-      # Sometimes xbps-src builds a bunch of other junk I don't want to be liable for distributing
       - name: Copy relevant packages to new directory to be packaged
         run: |
           mkdir ~/packages
@@ -123,8 +120,8 @@ jobs:
           cd ~
           curl -O https://raw.githubusercontent.com/void-land/hyprland-void/master/pem/private.pem
 
-      # We need to sign the packages with our private key so that they will be accepted by xbps remotely
       # See: https://docs.voidlinux.org/xbps/repositories/signing.html
+
       - name: Sign repository
         run: |
           export XBPS_PASSPHRASE=${{ secrets.PRIVATE_PEM_PASSPHRASE }}
@@ -156,14 +153,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # We'll blow the size of the repository up very quickly if we do not delete old iterations of the repository
-      - name: Delete old repository and recreate with new packages
+      - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git push origin -d repository-x86_64-glibc
+
+      - name: Update or Create Repository Branch
+        run: |
+          if git ls-remote --exit-code --heads origin repository-x86_64-glibc; then
+            echo "Branch exists, deleting it"
+            git push origin -d repository-x86_64-glibc
+          else
+            echo "Branch does not exist, will create new"
+          fi
           git switch --orphan repository-x86_64-glibc
+
+      - name: Extract and Add Packages
+        run: |
           tar -xvf ~/hyprland.tar.gz -C ./
           git add .
+
+      - name: Commit and Push Changes
+        run: |
           git commit -m "Upload latest packages to repository"
           git push origin repository-x86_64-glibc
